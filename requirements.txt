@@ -1,0 +1,18 @@
+
+websocket
+websocket-client
+googletrans==4.0.0-rc1
+mysql-connector-python
+db-sqlite3
+
+# pip install --upgrade httpcore httpx
+# pip show httpx
+# httpcore==0.13.6
+httpcore 
+httpx
+
+
+line_notify
+python-binance
+pycryptodome
+cryptocode

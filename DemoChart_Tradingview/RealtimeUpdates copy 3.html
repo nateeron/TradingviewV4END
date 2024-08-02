@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lightweight Charts with Binance WebSocket Data</title>
+    <script src="https://unpkg.com/lightweight-charts/dist/lightweight-charts.standalone.production.js"></script>
+    <style>
+        #chart {
+            width: 100%;
+            height: 100vh;
+        }
+    </style>
+</head>
+<body>
+    <div>
+        <label for="timeframe">Select Timeframe:</label>
+        <select id="timeframe">
+            <option value="1m">1 Minute</option>
+            <option value="15m">15 Minutes</option>
+            <option value="30m">30 Minutes</option>
+            <option value="1h">1 Hour</option>
+            <option value="2h">2 Hours</option>
+            <option value="4h">4 Hours</option>
+            <option value="1d">1 Day</option>
+        </select>
+    </div>
+    <div id="chart"></div>
+    <script >
+
+      const chartOptions = {
+            layout: {
+                textColor: 'black',
+                background: { type: 'solid', color: 'white' },
+            },
+            height: 400,
+        };
+        
+        const container = document.getElementById('chart');
+        const chart = LightweightCharts.createChart(container, chartOptions);
+        
+        const candlestickSeries = chart.addCandlestickSeries({
+            upColor: '#26a69a',
+            downColor: '#ef5350',
+            borderVisible: false,
+            wickUpColor: '#26a69a',
+            wickDownColor: '#ef5350',
+        });
+        
+        let socket;
+        
+        function generateData(interval) {
+            const createCandle = (val, time) => ({
+                time,
+                open: val,
+                high: val,
+                low: val,
+                close: val,
+            });
+        
+            const updateCandle = (candle, val) => ({
+                time: candle.time,
+                close: val,
+                open: candle.open,
+                low: Math.min(candle.low, val),
+                high: Math.max(candle.high, val),
+            });
+        
+            const initialData = [];
+            let lastCandle;
+            let previousValue = 0;
+        
+            if (socket) {
+                socket.close();
+            }
+        
+            socket = new WebSocket(`wss://stream.binance.com:9443/ws/xrpusdt@kline_${interval}`);
+        
+            socket.onmessage = function(event) {
+                const message = JSON.parse(event.data);
+                const time = message.k.t / 1000;  // Convert milliseconds to seconds
+                const value = parseFloat(message.k.c);  // Close price
+        
+                if (!lastCandle || time >= lastCandle.time + 60 * intervalInSeconds(interval)) {
+                    const candle = createCandle(value, time);
+                    lastCandle = candle;
+                    initialData.push(candle);
+                } else {
+                    const newCandle = updateCandle(lastCandle, value);
+                    lastCandle = newCandle;
+                    initialData[initialData.length - 1] = newCandle;
+                }
+        
+                candlestickSeries.setData(initialData);
+            };
+        }
+        
+        function intervalInSeconds(interval) {
+            switch (interval) {
+                case '1m': return 60;
+                case '15m': return 15 * 60;
+                case '30m': return 30 * 60;
+                case '1h': return 60 * 60;
+                case '2h': return 2 * 60 * 60;
+                case '4h': return 4 * 60 * 60;
+                case '1d': return 24 * 60 * 60;
+                default: return 60;
+            }
+        }
+        
+        document.getElementById('timeframe').addEventListener('change', (event) => {
+            const interval = event.target.value;
+            generateData(interval);
+        });
+        
+        generateData('1m');  // Default to 1 minute interval
+        
+        chart.timeScale().fitContent();
+
+        
+
+    </script>
+</body>
+</html>

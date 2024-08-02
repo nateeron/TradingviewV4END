@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+      <meta charset="UTF-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>Lightweight Charts Example</title>
+      <script src="https://unpkg.com/lightweight-charts/dist/lightweight-charts.standalone.production.js"></script>
+      <style>
+            #chart {
+                  width: 100%;
+                  height: 100vh;
+            }
+      </style>
+</head>
+
+<body>
+      <div id="chart"></div>
+      <script>
+            // Configuration options for the chart
+            const chartOptions = {
+                  layout: {
+                        textColor: 'black',
+                        background: { type: 'solid', color: 'white' },
+                  },
+            };
+
+            // Create the chart
+            const chart = LightweightCharts.createChart(document.getElementById('chart'), chartOptions);
+
+            // Add a line series to the chart
+            const lineSeries = chart.addLineSeries();
+
+            // Set some data for the line series
+           // lineSeries.setData([
+           //       { time: '2023-07-20', value: 100 },
+           //       { time: '2023-07-21', value: 101 },
+           //       { time: '2023-07-22', value: 102 },
+           //       { time: '2023-07-23', value: 103 },
+           //       { time: '2023-07-24', value: 104 },
+           // ]);
+
+
+            const symbol = 'XRPUSDT'  //# XRP/USDT trading pair
+            const interval = '1d'    // # 30 minit
+            const limit = 300    // # Maximum number of data points to retrieve
+
+            const base_url = "https://api.binance.com/api/v3/klines";
+            const params = new URLSearchParams({
+                  symbol: symbol,
+                  interval: interval,
+                  limit: limit
+            });
+
+            fetch(`${base_url}?${params.toString()}`)
+                  .then(response => response.json())
+                  .then(data => {
+                        // Process the data to fit the Lightweight Charts format
+                        const processedData = data.map(item => ({
+                              time: item[0] / 1000, // Convert milliseconds to seconds
+                              value: parseFloat(item[4]) // Close price
+                        }));
+                        lineSeries.setData(processedData);
+                  })
+                  .catch(error => console.error('Error fetching data:', error));
+
+
+            // Add a price line
+            lineSeries.createPriceLine({
+                  price:0.605,
+                  color: 'red',
+                  lineWidth: 2,
+                  lineStyle: LightweightCharts.LineStyle.Dashed,
+                  axisLabelVisible: true,
+                  title: 'My Price Line',
+            });
+
+            const lineWidth = 2;
+            const minPriceLine = {
+                  price:0.602,
+                  color: '#ef5350',
+                  lineWidth: lineWidth,
+                  lineStyle: 2, // LineStyle.Dashed
+                  axisLabelVisible: true,
+                  title: 'min price',
+            };
+            const avgPriceLine = {
+                  price: 0.603,
+                  color: 'black',
+                  lineWidth: lineWidth,
+                  lineStyle: 1, // LineStyle.Dotted
+                  axisLabelVisible: true,
+                  title: 'ave price',
+            };
+            const maxPriceLine = {
+                  price: 0.604,
+                  color: '#26a69a',
+                  lineWidth: lineWidth,
+                  lineStyle: 2, // LineStyle.Dashed
+                  axisLabelVisible: true,
+                  title: 'max price',
+            };
+
+            lineSeries.createPriceLine(minPriceLine);
+            lineSeries.createPriceLine(avgPriceLine);
+            lineSeries.createPriceLine(maxPriceLine);
+      </script>
+</body>
+
+</html>

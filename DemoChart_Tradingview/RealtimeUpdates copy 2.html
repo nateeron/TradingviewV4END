@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+      <meta charset="UTF-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>Lightweight Charts Example</title>
+      <script src="https://unpkg.com/lightweight-charts/dist/lightweight-charts.standalone.production.js"></script>
+      <style>
+            #chart {
+                  width: 100%;
+                  height: 100vh;
+            }
+      </style>
+</head>
+
+<body>
+      <div id="chart"></div>
+      <script>
+            // Configuration for the chart
+            const chartOptions = {
+                  layout: {
+                        textColor: 'black',
+                        background: { type: 'solid', color: 'white' },
+                  },
+                  height: 400,
+            };
+
+            const container = document.getElementById('chart');
+            const chart = LightweightCharts.createChart(container, chartOptions);
+
+            // Configure the candlestick series
+            const candlestickSeries = chart.addCandlestickSeries({
+                  upColor: '#26a69a',
+                  downColor: '#ef5350',
+                  borderVisible: false,
+                  wickUpColor: '#26a69a',
+                  wickDownColor: '#ef5350',
+            });
+
+            // Establish WebSocket connection
+            const socket = new WebSocket('wss://stream.binance.com:9443/ws/xrpusdt@trade');
+
+            // Function to generate data and process incoming WebSocket messages
+            function generateData(startAt = 100) {
+                  const createCandle = (val, time) => ({
+                        time,
+                        open: val,
+                        high: val,
+                        low: val,
+                        close: val,
+                  });
+
+                  const updateCandle = (candle, val) => ({
+                        time: candle.time,
+                        close: val,
+                        open: candle.open,
+                        low: Math.min(candle.low, val),
+                        high: Math.max(candle.high, val),
+                  });
+
+                  const initialData = [];
+                  const realtimeUpdates = [];
+                  let lastCandle;
+                  let previousValue = 0;
+
+                  socket.onmessage = function (event) {
+                        const message = JSON.parse(event.data);
+                        const time = message.T / 1000;  // Convert milliseconds to seconds
+                        const value = parseFloat(message.p);  // Price
+
+                        if (!lastCandle || time >= lastCandle.time + 86400) {  // New day candle
+                              const candle = createCandle(value, time);
+                              lastCandle = candle;
+                              initialData.push(candle);
+                              if (initialData.length > startAt) {
+                                    realtimeUpdates.push(candle);
+                              }
+                        } else {  // Update existing candle
+                              const newCandle = updateCandle(lastCandle, value);
+                              lastCandle = newCandle;
+                              initialData[initialData.length - 1] = newCandle;
+                              if (initialData.length > startAt) {
+                                    realtimeUpdates.push(newCandle);
+                              }
+                        }
+
+                        // Update the chart with the new candle
+                        candlestickSeries.update(lastCandle);
+                  };
+
+                  return {
+                        initialData,
+                        realtimeUpdates,
+                  };
+            }
+
+            // Generate initial data and set it to the series
+            const { initialData } = generateData();
+
+            
+            candlestickSeries.setData(initialData);
+
+            // Adjust chart layout to fit all content
+            chart.timeScale().fitContent();
+            chart.timeScale().scrollToPosition(5);
+
+            // simulate real-time data
+            function* getNextRealtimeUpdate(realtimeData) {
+                  for (const dataPoint of realtimeData) {
+                        yield dataPoint;
+                  }
+                  return null;
+            }
+            const streamingDataProvider = getNextRealtimeUpdate(data.realtimeUpdates);
+
+            const intervalID = setInterval(() => {
+                  const update = streamingDataProvider.next();
+                  if (update.done) {
+                        clearInterval(intervalID);
+                        return;
+                  }
+                  series.update(update.value);
+            }, 100);
+
+            const styles = `
+    .buttons-container {
+        display: flex;
+        flex-direction: row;
+        gap: 8px;
+    }
+    .buttons-container button {
+        all: initial;
+        font-family: -apple-system, BlinkMacSystemFont, 'Trebuchet MS', Roboto, Ubuntu,
+            sans-serif;
+        font-size: 16px;
+        font-style: normal;
+        font-weight: 510;
+        line-height: 24px; /* 150% */
+        letter-spacing: -0.32px;
+        padding: 8px 24px;
+        color: rgba(19, 23, 34, 1);
+        background-color: rgba(240, 243, 250, 1);
+        border-radius: 8px;
+        cursor: pointer;
+    }
+
+    .buttons-container button:hover {
+        background-color: rgba(224, 227, 235, 1);
+    }
+
+    .buttons-container button:active {
+        background-color: rgba(209, 212, 220, 1);
+    }
+`;
+
+            const stylesElement = document.createElement('style');
+            stylesElement.innerHTML = styles;
+            container.appendChild(stylesElement);
+
+            const buttonsContainer = document.createElement('div');
+            buttonsContainer.classList.add('buttons-container');
+            const button = document.createElement('button');
+            button.innerText = 'Go to realtime';
+            button.addEventListener('click', () => chart.timeScale().scrollToRealTime());
+            buttonsContainer.appendChild(button);
+
+            container.appendChild(buttonsContainer);
+      </script>
+</body>
+
+</html>

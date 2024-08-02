@@ -1,0 +1,426 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lightweight Charts with Binance WebSocket Data</title>
+    <script src="https://unpkg.com/lightweight-charts/dist/lightweight-charts.standalone.production.js"></script>
+
+</head>
+
+<body>
+    <style>
+        #chart {
+            width: 100%;
+            height: 100vh;
+        }
+
+        body {
+            color: aliceblue;
+
+            background-color: #222;
+        }
+    </style>
+    <div>
+        <label for="timeframe">Select Timeframe:</label>
+        <select id="timeframe">
+            <option value="1m">1 Minute</option>
+            <option value="15m">15 Minutes</option>
+            <option value="30m">30 Minutes</option>
+            <option value="1h">1 Hour</option>
+            <option value="2h">2 Hours</option>
+            <option value="4h">4 Hours</option>
+            <option value="1d">1 Day</option>
+        </select>
+    </div>
+    <div id="chart"></div>
+    <script>
+        const myPriceFormatter = p => p.toFixed(4);
+        //----------------------------------------------------------
+        //const currentLocale = window.navigator.languages[0];
+        //// Create a number format using Intl.NumberFormat
+        //const myPriceFormatter = Intl.NumberFormat(currentLocale, {
+        //    style: 'currency',
+        //    currency: 'EUR', // Currency for data points
+        //}).format;
+        //----------------------------------------------------------
+        const chartOptions = {
+            layout: {
+                textColor: '#E4E4E4',
+                background: { type: 'solid', color: '#202020' },
+                borderColor: '#63C20B',
+            },
+            //timeScale: {
+            //    timeVisible: true,
+            //    secondsVisible: false,
+            //    tickMarkFormatter: (time, tickMarkType, locale) => {
+            //        const date = new Date(time * 1000);
+            //        return date.toLocaleDateString(locale, {
+            //            day: 'numeric',
+            //            month: 'short',
+            //            year: 'numeric',
+            //        });
+            //    },
+            //},
+            //set Color the grid lines
+            grid: {
+                vertLines: { color: '#444' },
+                horzLines: { color: '#444' },
+            },
+            // hide the grid lines
+            //grid: {
+            //    vertLines: {
+            //        visible: false,
+            //    },
+            //    horzLines: {
+            //        visible: false,
+            //    },
+            //},
+            localization: {
+                priceFormatter: myPriceFormatter,
+            },
+        };
+
+        function formatPrice(value, decimals) {
+            return Number(value.toFixed(decimals));
+        }
+
+
+        function calculateMovingAverageSeriesData(candleData, maLength) {
+            const maData = [];
+
+            for (let i = 0; i < candleData.length; i++) {
+                if (i < maLength) {
+                    // Provide whitespace data points until the MA can be calculated
+                    maData.push({ time: candleData[i].time });
+                } else {
+                    // Calculate the moving average, slow but simple way
+                    let sum = 0;
+                    for (let j = 0; j < maLength; j++) {
+                        sum += candleData[i - j].close;
+                    }
+                    const maValue = sum / maLength;
+                    maData.push({ time: candleData[i].time, value: maValue });
+                }
+            }
+            return maData;
+        }
+
+        const container = document.getElementById('chart');
+        const chart = LightweightCharts.createChart(container, chartOptions);
+
+        const candlestickSeries = chart.addCandlestickSeries({
+            upColor: '#26a69a',
+            downColor: '#ef5350',
+            borderVisible: false,
+            wickUpColor: '#26a69a',
+            wickDownColor: '#ef5350',
+        });
+
+        let socket;
+        let maSeries;
+        let maSeries2;
+        const maPeriod = 90;
+        const maPeriod2 = 20;
+        function updateMovingAverageSeries(candleData, period) {
+            try {
+                if (maSeries) {
+                    chart.removeSeries(maSeries);
+                }
+                const maData = calculateMovingAverageSeriesData(candleData, period);
+                maSeries = chart.addLineSeries({ color: '#CA7B05', lineWidth: 1 });
+                maSeries.setData(maData);
+            } catch (error) {
+                console.log(error)
+            }
+        }
+
+        function updateMovingAverageSeries2(candleData, period) {
+
+            try {
+
+                if (maSeries2) {
+                    chart.removeSeries(maSeries2);
+                }
+                const maData = calculateMovingAverageSeriesData(candleData, period);
+                maSeries2 = chart.addLineSeries({ color: '#69B90D', lineWidth: 1 });
+                maSeries2.setData(maData);
+            } catch (error) {
+                console.log(error)
+            }
+        }
+        const decimal = 4
+        // NEW ------------------------------
+        const base_url = "https://api.binance.com/api/v3/klines";
+        const symbol = 'XRPUSDT'; // Replace with your symbol
+        const limit = 1000; // Binance API limit for klines per request
+        const totalRows = 40000; // Total rows you want to fetch
+
+        function convert_TS(timestamp) {
+            // Create a new Date object using the timestamp
+            const date = new Date(timestamp);
+
+            // Extract date components
+            const year = date.getFullYear();
+            const month = String(date.getMonth() + 1).padStart(2, '0'); // Months are zero-based
+            const day = String(date.getDate()).padStart(2, '0');
+            const hours = String(date.getHours()).padStart(2, '0');
+            const minutes = String(date.getMinutes()).padStart(2, '0');
+            const seconds = String(date.getSeconds()).padStart(2, '0');
+
+            // Format the date and time as "dd-mm-yy hh:mm:ss"
+            const formattedDate = `${day}-${month}-${year} ${hours}:${minutes}:${seconds}`;
+
+            return formattedDate;
+        }
+
+        async function fetchKlines(symbol, interval, limit, startTime = null) {
+            console.log("fetchKlines", startTime)
+            const params = new URLSearchParams({
+                symbol: symbol,
+                interval: interval,
+                limit: limit,
+            });
+            if (startTime) {
+                params.append('startTime', startTime);
+            }
+
+            const response = await fetch(`${base_url}?${params.toString()}`);
+            const data = await response.json();
+            return data;
+        }
+
+        function SortData(data) {
+            // Sort the filtered data by time in ascending order
+            const sortedData = data.sort((a, b) => a[0] - b[0]);
+            return sortedData;
+        }
+
+        function StartNewTime(interval, factor) {
+            // Define the number of seconds per interval unit
+            const intervalUnits = {
+                's': 1,            // Seconds
+                'm': 60,           // Minutes
+                'h': 3600,         // Hours
+                'd': 86400,        // Days
+                'w': 604800        // Weeks
+            };
+
+            // Parse the interval to get the number and the unit
+            const intervalValue = parseInt(interval.slice(0, -1), 10);
+            const intervalUnit = interval.slice(-1);
+            console.log(intervalValue, intervalUnit, intervalUnits[intervalUnit], factor)
+            // Calculate the total number of seconds
+            const totalSeconds = intervalValue * intervalUnits[intervalUnit] * factor * 1000;
+            console.log("totalSeconds", totalSeconds)
+
+
+
+            return totalSeconds;
+        }
+        function validateData(data) {
+            return data.filter(item => item !== null && item !== undefined);
+        }
+        function removeDuplicates(data) {
+            const seen = new Set();
+            return data.filter(item => {
+                const duplicate = seen.has(item[0]);
+                seen.add(item[0]);
+                return !duplicate;
+            });
+        }
+        async function fetchAllKlines(symbol, interval, totalRows) {
+            let allData = [];
+            let fetchCount = Math.ceil(totalRows / limit);
+            console.log("fetchCount", totalRows, limit)
+            console.log(fetchCount)
+            const promises = [];
+            let lastEndTime = null;
+           
+            try {
+                for (let i = 0; i < fetchCount; i++) {
+                    const data = await fetchKlines(symbol, interval, limit, lastEndTime);
+                    //if (i ==10 || i ==11){
+                    //    allData = allData.concat(data);
+                    //}
+                    allData = allData.concat(data);
+                    console.log(allData)
+                
+                   //for (let i = 0; i < allData.length; i++) {
+                   //    console.log(allData[i][0], convert_TS(allData[i][0]))
+                   //}
+                    if (data.length > 0) {
+                        const st = StartNewTime(interval, limit)
+                        lastEndTime = data[0][0] - st; // Use the endTime of the last kline
+                    }
+                }
+                const resp = SortData(allData)
+                // เช็ก Data
+                //    console.log(resp)
+                //    for(let i = 0; i < resp.length; i++){
+                //    console.log(resp[i][0],convert_TS(allData[i][0]))
+                //
+                //}
+                const validData = validateData(resp);
+                const noDuplicatesData = removeDuplicates(validData); 
+                return noDuplicatesData;
+            } catch {
+                return null
+
+            }
+        }
+
+
+
+        function formatPrice(price, decimal) {
+            return price.toFixed(decimal);
+        }
+        //END New 
+
+        // อ้างอิง : https://developers.binance.com/docs/binance-spot-api-docs/rest-api
+        async function fetchHistoricalData(symbol, interval) {
+
+            const rawKlines = await fetchAllKlines(symbol, interval, totalRows);
+            console.log(rawKlines)
+
+            //const processedData = rawKlines.map(item => ({
+            //    time: item[0] / 1000, // Convert milliseconds to seconds
+            //    open: formatPrice(parseFloat(item[1]), decimal),
+            //    high: formatPrice(parseFloat(item[2]), decimal),
+            //    low: formatPrice(parseFloat(item[3]), decimal),
+            //    close: formatPrice(parseFloat(item[4]), decimal)
+            //}));
+            try {
+                const processedData = rawKlines.map(item => ({
+                    time: item[0] / 1000, // Convert milliseconds to seconds
+                    open: parseFloat(item[1]),
+                    high: parseFloat(item[2]),
+                    low: parseFloat(item[3]),
+                    close: parseFloat(item[4])
+                }));
+                //------ Start EMA20 -----------------
+                // EMA 20
+
+                //updateMovingAverageSeries(processedData, maPeriod);
+                //updateMovingAverageSeries2(processedData, maPeriod2);
+
+                //------end EMA20 -----------------
+
+                // add data
+                candlestickSeries.setData(processedData);
+                //SeriesMarkerPosition: "aboveBar" | "belowBar" | "inBar"
+                //SeriesMarkerShape: "circle" | "square" | "arrowUp" | "arrowDown"
+                // const markers = [
+                //     {
+                //         time: processedData[processedData.length - 3].time,
+                //         position: 'inBar',
+                //         color: '#2A60C4',
+                //         shape: 'arrowUp',
+                //         text: 'Buy @ ' + processedData[1].low,
+                //     },
+                //
+                // ];
+                // candlestickSeries.setMarkers(markers);
+                runRealtimeUpdates(symbol, interval);
+            } catch (Error) {
+                console.log(Error)
+
+            }
+        }
+
+        function runRealtimeUpdates(symbol, interval) {
+            try {
+                if (socket) {
+                    socket.close();
+                }
+                // Get Price Reailtime
+                socket = new WebSocket(`wss://stream.binance.com:9443/ws/${symbol.toLowerCase()}@kline_${interval}`);
+                socket.onmessage = function (event) {
+                    const message = JSON.parse(event.data);
+                    const candle = {
+                        time: message.k.t / 1000,  // Convert milliseconds to seconds
+                        open: parseFloat(message.k.o),
+                        high: parseFloat(message.k.h),
+                        low: parseFloat(message.k.l),
+                        close: parseFloat(message.k.c),
+                    };
+
+
+                    candlestickSeries.update(candle);
+                    //------ Start EMA20 -----------------
+                    // EMA 20
+                    const data = candlestickSeries.data();
+                    //updateMovingAverageSeries(data, maPeriod);
+                    //updateMovingAverageSeries2(data, maPeriod2);
+                    //------end EMA20 -----------------
+                };
+            } catch (Error) {
+
+                console.log(Error)
+            }
+        }
+
+        function intervalInSeconds(interval) {
+            switch (interval) {
+
+                case '1m': return 60;
+                case '15m': return 15 * 60;
+                case '30m': return 30 * 60;
+                case '1h': return 60 * 60;
+                case '2h': return 2 * 60 * 60;
+                case '4h': return 4 * 60 * 60;
+                case '1d': return 24 * 60 * 60;
+                default: return 60;
+            }
+        }
+        let interval;
+        let symbolName = symbol + ' TF: 1m';
+        document.getElementById('timeframe').addEventListener('change', (event) => {
+            interval = event.target.value;
+            console.log(symbol, interval)
+            symbolName = symbol + ' TF: ' + interval
+            fetchHistoricalData(symbol, interval);
+        });
+        const areaSeries = chart.addAreaSeries({
+            topColor: '#2962FF',
+            bottomColor: 'rgba(41, 98, 255, 0.28)',
+            lineColor: '#2962FF',
+            lineWidth: 2,
+            crossHairMarkerVisible: false,
+        });
+        // start get data
+        fetchHistoricalData(symbol, '1m');  // Default to 1 minute interval
+
+        // ----------------------------------------------------------------------------------------------------------------------------------------------------------
+        const legend = document.createElement('div');
+        legend.style = `position: absolute; left: 12px; top: 100px; z-index: 1; font-size: 14px; font-family: sans-serif; line-height: 18px; font-weight: 300;`;
+        container.appendChild(legend);
+        const firstRow = document.createElement('div');
+        firstRow.innerHTML = symbolName;
+        firstRow.style.color = 'aliceblue';
+        legend.appendChild(firstRow);
+
+        //chart.subscribeCrosshairMove(param => {
+        //    let priceFormatted = '';
+        //    if (param.time) {
+        //        const data = param.seriesData.get(areaSeries);
+        //        const price = data.value !== undefined ? data.value : data.close;
+        //        priceFormatted = price.toFixed(2);
+        //    }
+        //    firstRow.innerHTML = `${symbolName} <strong>${priceFormatted}</strong>`;
+        //});
+        // ----------------------------------------------------------------------------------------------------------------------------------------------------------
+
+        chart.timeScale().fitContent();
+
+        chart.timeScale().scrollToPosition(5);
+
+
+
+
+
+    </script>
+</body>
+
+</html>
