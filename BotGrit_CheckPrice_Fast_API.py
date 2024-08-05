@@ -233,7 +233,7 @@ class Connection(BaseModel):
     LINE_ADMIN: Optional[str] = None
     LINE_ADMIN2: Optional[str] = None
 
-class ConnetBinace(BaseModel):
+class Connetbinace(BaseModel):
     API_KEY: Optional[str] = None
     API_SECRET: Optional[str] = None
     LINE_ADMIN: Optional[str] = None
@@ -246,7 +246,7 @@ class Config(BaseModel):
     PERCEN_SELL: Optional[str] = None
     SYMBOL: Optional[List[str]] = None
     Connetion: Optional[Connection] = None
-    ConnetBinace: Optional[ConnetBinace] = None
+    ConnetBinace: Optional[Connetbinace] = None
     
 @app.post("/setting")
 def update_settings(new_config: Config):
