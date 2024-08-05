@@ -10,35 +10,37 @@ function c_s(p) {
     return p_B;
 }
 
+let plotline;
 
-let plotline
-function plotLine(price){
-
+function plotLine(price) {
     try {
-
         if (plotline) {
             chart.removeSeries(plotline);
         }
 
-        plotline = chart.addLineSeries({ color: '#910db9', lineWidth:2  ,
-          // disabling built-in price lines
-          lastValueVisible: false,
-          priceLineVisible: false,});
-          plotline.setData(price);
+        plotline = chart.addLineSeries({
+            color: "#910db9",
+            lineWidth: 2,
+            // disabling built-in price lines
+            lastValueVisible: false,
+            priceLineVisible: false,
+        });
+        plotline.setData(price);
     } catch (error) {
-        console.log(error)
+        console.log(error);
     }
 }
-function mark_S(location,c_mark) {
-    if(c_mark > 0){
+
+function mark_S(location, c_mark) {
+    if (c_mark > 0) {
         return {
             time: location,
             position: "aboveBar",
             color: "#822ee2",
             shape: "arrowDown",
-            text: "Sell"+c_mark,
+            text: "Sell" + c_mark,
         };
-    }else{
+    } else {
         return {
             time: location,
             position: "aboveBar",
@@ -47,7 +49,6 @@ function mark_S(location,c_mark) {
             text: "Sell",
         };
     }
-    
 }
 function mark_B(location) {
     return {
@@ -59,10 +60,32 @@ function mark_B(location) {
     };
 }
 
-function BotGrid(data,TF) {
-    const txt_Action_B = document.getElementById("Action_B");
-    const txt_Action_S = document.getElementById("Action_S");
-    const txt_Action_Day = document.getElementById("Action_D");
+function cal_NetPorfit(orderval, tp, lowBuy, com, OrderSell) {
+    const PercenTP = (orderval / 100) * (tp - com);
+    const tp_ = PercenTP * OrderSell;
+    console.log(orderval, tp, lowBuy, com, OrderSell);
+    console.log(PercenTP);
+    console.log(orderval + PercenTP, OrderSell);
+    console.log(tp_);
+
+    return tp_.toFixed(2);
+}
+
+const txt_Action_B = document.getElementById("Action_B");
+const txt_Action_S = document.getElementById("Action_S");
+const txt_Action_Day = document.getElementById("Action_D");
+const txt_Dxy = document.getElementById("Dxy");
+
+const txt_Order_Val = document.getElementById("Order_Val");
+const txt_low_Buy = document.getElementById("low_Buy");
+const txt_TP_Val = document.getElementById("TP_Val");
+const txt_Net_profit = document.getElementById("Net_profit");
+const com = 0.1 * 2; // ค่าคอมมิชั่น
+function BotGrid(data, TF) {
+    
+    txt_Order_Val.value = 16;
+    txt_low_Buy.value = 0.45;
+    txt_TP_Val.value = 0.55;
     //console.log("BotGrid",data)
     let p = 0;
     let p_buy = [];
@@ -71,7 +94,7 @@ function BotGrid(data,TF) {
     let last_ACTION = "BUY"; // BUY | SELL
 
     let markers = [];
-    let All_Sell = []
+    let All_Sell = [];
     let Count_B = 0;
     let Count_S = 0;
     const ss = data.map((x, i) => {
@@ -83,33 +106,32 @@ function BotGrid(data,TF) {
             // Action BUY
             p_Action = x.close;
             last_ACTION = "BUY";
-            console.log("BUY");
+            //console.log("BUY");
             Count_B = Count_B + 1;
             markers = markers.concat(mark_B(plot));
             p_buy = p_buy.concat(x.close);
-          
         }
-        let c_mark = 0
+        let c_mark = 0;
+        //แสดงจุดซื้อขาย
         p_buy.forEach((pB, index) => {
             if (x.close > c_s(pB) || x.high > c_s(pB)) {
                 // Action Sell
                 p_Action = x.close;
                 last_ACTION = "SELL";
-                console.log("SELL");
+                //  console.log("SELL");
 
-                markers = markers.concat(mark_S(plot,c_mark));
-                c_mark = c_mark + 1
+                markers = markers.concat(mark_S(plot, c_mark));
+                c_mark = c_mark + 1;
                 Count_S = Count_S + 1;
                 // Remove the current element from the array
                 p_buy.splice(index, 1);
                 for (let index = 0; index < 2; index++) {
-                    console.log("StartNewTime",plot+StartNewTime(TF,index+1))
+                    // console.log("StartNewTime", plot + StartNewTime(TF, index + 1));
                     //All_Sell = All_Sell.concat({time: plot+StartNewTime(TF,index) ,value:null})
-                    All_Sell = All_Sell.concat({time: plot,value:p_Action})
+                    All_Sell = All_Sell.concat({ time: plot, value: p_Action });
                 }
-              
-                plotLine(All_Sell)
 
+                plotLine(All_Sell);
             }
         });
 
@@ -117,17 +139,17 @@ function BotGrid(data,TF) {
             // Action BUY
             p_Action = x.close;
             last_ACTION = "BUY";
-            console.log("BUY");
+            // console.log("BUY");
             Count_B = Count_B + 1;
             markers = markers.concat(mark_B(plot));
             p_buy = p_buy.concat(x.close);
         }
-        if ( p_buy.length == 0 ) {
-            console.log(plot);
+        if (p_buy.length == 0) {
+            //console.log(plot);
             // Action BUY
             p_Action = x.close;
             last_ACTION = "BUY";
-            console.log("BUY");
+            //console.log("BUY");
             Count_B = Count_B + 1;
             markers = markers.concat(mark_B(plot));
             p_buy = p_buy.concat(x.close);
@@ -149,15 +171,34 @@ function BotGrid(data,TF) {
         //}
     });
 
-   
     const day_start = data[0].time;
     const day_end = data[data.length - 1].time;
     txt_Action_B.innerHTML = Count_B;
     txt_Action_S.innerHTML = Count_S;
+    txt_Dxy.innerHTML = parseFloat(Count_B) - parseFloat(Count_S);
     txt_Action_Day.innerHTML = cal_days(day_start, day_end);
-    console.log(markers);
+    const pf = cal_NetPorfit(txt_Order_Val.value, txt_TP_Val.value, txt_low_Buy.value, com, txt_Action_S.innerText);
+
+    txt_Net_profit.innerHTML = pf + "$ THB:" + pf * 35;
+
+    //console.log(markers);
     return markers;
 }
+
+txt_Order_Val.addEventListener("change", function () {
+    const pf = cal_NetPorfit(txt_Order_Val.value, txt_TP_Val.value, txt_low_Buy.value, com, txt_Action_S.innerText);
+    txt_Net_profit.innerHTML = pf + "$ THB:" + pf * 35;
+});
+
+txt_TP_Val.addEventListener("change", function () {
+    const pf = cal_NetPorfit(txt_Order_Val.value, txt_TP_Val.value, txt_low_Buy.value, com, txt_Action_S.innerText);
+    txt_Net_profit.innerHTML = pf + "$ THB:" + pf * 35;
+});
+
+txt_low_Buy.addEventListener("change", function () {
+    const pf = cal_NetPorfit(txt_Order_Val.value, txt_TP_Val.value, txt_low_Buy.value, com, txt_Action_S.innerText);
+    txt_Net_profit.innerHTML = pf + "$ THB:" + pf * 35;
+});
 
 function cal_days(t1, t2) {
     const date1 = new Date(t1 * 1000); // Convert to milliseconds
@@ -165,6 +206,6 @@ function cal_days(t1, t2) {
     const timeDifference = date2 - date1; // Difference in milliseconds
     const dayDifference = (timeDifference / (1000 * 60 * 60 * 24)).toFixed(2); // Convert milliseconds to days
 
-    console.log(`Difference in days: ${dayDifference}`);
+    // console.log(`Difference in days: ${dayDifference}`);
     return dayDifference;
 }

@@ -55,26 +55,45 @@
                 Action Sell : <div id="Action_S"></div>
             </div>
             <div class="pl">
+             Dxy : <div id="Dxy"></div>
+            </div>
+            <div class="pl">
                 Days : <div id="Action_D"></div>
             </div>
+            <div class="pl">
+                Order Value : <input id="Order_Val" /> 
+            </div>
+            <div class="pl">
+                low Buy % : <input id="low_Buy" />
+             </div>
+            <div class="pl">
+               TP % : <input id="TP_Val" /> 
+            </div>
+            <div class="pl">
+                Net profit : <div id="Net_profit"></div>
+             </div>
+          
         </div>
         <div class="flax">
             <div class="pl">
 
-             a : <div id="Action_B"></div>
+                <a>bar</a>
+                <div id="param-value"></div> 
             </div>
             <div class="pl">
 
-                Action Sell : <div id="Action_S"></div>
+                --- : <div id="Action_S"></div>
             </div>
             <div class="pl">
-                Days : <div id="Action_D"></div>
+                -- : <div id="Action_D"></div>
             </div>
         </div>
     </div>
     </div>
     <div id="chart"></div>
     <script>
+
+        let bar
         const myPriceFormatter = p => p.toFixed(4);
         //----------------------------------------------------------
         //const currentLocale = window.navigator.languages[0];
@@ -121,11 +140,26 @@
                 priceFormatter: myPriceFormatter,
             },
         };
-
+        const params = new URLSearchParams(window.location.search);
+        
+        // Example: Get the value of a specific parameter named 'exampleParam'
+        const exampleParamValue = params.get('bar');
+        bar =params.get('bar');
+        document.addEventListener('DOMContentLoaded', function () {
+            // Get the URL parameters
+           
+            // Display the parameter value in the HTML element
+            const paramValueElement = document.getElementById('param-value');
+            if (exampleParamValue) {
+                paramValueElement.textContent = ` ${exampleParamValue}`;
+            } else {
+                paramValueElement.textContent = 'No exampleParam found in the URL.';
+            }
+        });
         const base_url = "https://api.binance.com/api/v3/klines";
         const symbol = 'XRPUSDT'; // Replace with your symbol
         const limit = 1000; // Binance API limit for klines per request
-        const totalRows = 6000; // Total rows you want to fetch
+        const totalRows = bar; // Total rows you want to fetch
 
         const container = document.getElementById('chart');
         const chart = LightweightCharts.createChart(container, chartOptions);

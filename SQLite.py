@@ -1,14 +1,13 @@
 import sqlite3
 import os
-
+from datetime import datetime
 
 # เช็ก Data ว่าถูกสรา้งหรือยัง ถ้ายังให้สร้าง
 def check_db_and_table():
     db_path = 'settings.db'
-
     # Check if the database file exists
     if not os.path.exists(db_path):
-        create_table()
+        create_table_order()
         return {"status": 200, "message": "Create NEW Data"}
 
 
@@ -17,92 +16,76 @@ def connect_db():
     return sqlite3.connect('settings.db')
 
 
-# สรา้ง Data Table
-def create_table():
+
+# สรา้ง Data Table tb_Order
+def create_table_order():
     conn = connect_db()
     cursor = conn.cursor()
     cursor.execute('''
-        CREATE TABLE IF NOT EXISTS tb_setting (
+        CREATE TABLE IF NOT EXISTS tb_Order (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            APIKEY TEXT NOT NULL,
-            SECRETKEY TEXT NOT NULL,
-            ORDER_VAL INTEGER NOT NULL,
-            PERCEN_BUY REAL NOT NULL,
-            PERCEN_SELL REAL NOT NULL,
             SYMBOL TEXT NOT NULL,
-            LINE_ADMIN TEXT NOT NULL,
-            LINE_USER TEXT NOT NULL
+            PRICE_BUY REAL NOT NULL,
+            PRICE_SELL REAL NOT NULL,
+            QUANTITY REAL NOT NULL,
+            STATUS INTEGER NOT NULL,
+            DATE_BUY TEXT NOT NULL,
+            DATE_SELL TEXT
         )
     ''')
     conn.commit()
     conn.close()
+    
+# id	Price_Buy	Price_Sell	status	dateBuy	dateSell
+# 1	0.4586	0.4686	1	28/7/2024	28/7/2024
+# select Data Table tb_Order
+def Select_tableOrder(status,symbol,orderby,limit):
+    conn = connect_db()
+    cursor = conn.cursor()
+    # status 0 not Sell
+    cursor.execute('''
+        SELECT id, SYMBOL, PRICE_BUY, PRICE_SELL,QUANTITY, STATUS, DATE_BUY, DATE_SELL 
+        FROM tb_Order 
+        WHERE STATUS = ? and SYMBOL = ?
+        ORDER BY ? 
+        LIMIT ?
+    ''', (status, symbol ,orderby,limit))
+    Order = cursor.fetchone()
+    conn.close()
+    return Order
 
-# Add Data
-def create_setting(api_key, secret_key, order_val, perc_buy, perc_sell, symbol, line_admin, line_user):
+
+# update Data Table tb_Order
+def update_order_status(order_id, new_status,priceSell):
     conn = connect_db()
     cursor = conn.cursor()
     cursor.execute('''
-        INSERT INTO tb_setting (APIKEY, SECRETKEY, ORDER_VAL, PERCEN_BUY, PERCEN_SELL, SYMBOL, LINE_ADMIN, LINE_USER)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-    ''', (api_key, secret_key, order_val, perc_buy, perc_sell, symbol, line_admin, line_user))
+        UPDATE tb_Order
+         SET PRICE_SELL = ?,STATUS = ?,
+            DATE_SELL = ?
+        WHERE id = ?
+    ''', (priceSell,new_status, datetime.now().isoformat(), order_id))
     conn.commit()
     conn.close()
     
-# Read
-def read_setting(setting_id):
+# insert Data Table tb_Order
+def Insert_tableOrder(SYMBOL, PRICE_BUY, PRICE_SELL, STATUS, QUANTITY):
     conn = connect_db()
     cursor = conn.cursor()
-    cursor.execute('SELECT * FROM tb_setting WHERE id = ?', (setting_id,))
-    setting = cursor.fetchone()
+    DATE_BUY = datetime.now().isoformat()
+    cursor.execute('''
+       INSERT INTO tb_Order (SYMBOL, PRICE_BUY, PRICE_SELL,QUANTITY, STATUS, DATE_BUY, DATE_SELL)
+        VALUES (?, ?, ?, ?, ?, ?,?)
+    ''', (SYMBOL, PRICE_BUY, PRICE_SELL,QUANTITY, STATUS, DATE_BUY,DATE_BUY))
+    conn.commit()
     conn.close()
-    return setting
 
-# update
-def update_setting(setting_id, api_key=None, secret_key=None, order_val=None, perc_buy=None, perc_sell=None, symbol=None, line_admin=None, line_user=None):
-    conn = connect_db()
-    cursor = conn.cursor()
-    
-    # Prepare the update statement
-    updates = []
-    params = []
-    
-    if api_key is not None:
-        updates.append("APIKEY = ?")
-        params.append(api_key)
-    if secret_key is not None:
-        updates.append("SECRETKEY = ?")
-        params.append(secret_key)
-    if order_val is not None:
-        updates.append("ORDER_VAL = ?")
-        params.append(order_val)
-    if perc_buy is not None:
-        updates.append("PERCEN_BUY = ?")
-        params.append(perc_buy)
-    if perc_sell is not None:
-        updates.append("PERCEN_SELL = ?")
-        params.append(perc_sell)
-    if symbol is not None:
-        updates.append("SYMBOL = ?")
-        params.append(symbol)
-    if line_admin is not None:
-        updates.append("LINE_ADMIN = ?")
-        params.append(line_admin)
-    if line_user is not None:
-        updates.append("LINE_USER = ?")
-        params.append(line_user)
-    
-    if updates:
-        update_statement = "UPDATE tb_setting SET " + ", ".join(updates) + " WHERE id = ?"
-        params.append(setting_id)
-        cursor.execute(update_statement, params)
-        conn.commit()
-    
-    conn.close()
-    
+
+# DELETE tb_Order BY ID
 def delete_setting(setting_id):
     conn = connect_db()
     cursor = conn.cursor()
-    cursor.execute('DELETE FROM tb_setting WHERE id = ?', (setting_id,))
+    cursor.execute('DELETE FROM tb_Order WHERE id = ?', (setting_id,))
     conn.commit()
     conn.close()
 
