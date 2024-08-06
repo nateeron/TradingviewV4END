@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lightweight Charts - Measure Price Range</title>
+    <script src="https://unpkg.com/lightweight-charts/dist/lightweight-charts.standalone.production.js"></script>
+    <style>
+        #chart-container {
+            width: 100%;
+            height: 400px;
+        }
+    </style>
+</head>
+<body>
+    <div id="chart-container"></div>
+    <script >
+      document.addEventListener('DOMContentLoaded', function () {
+            const chartContainer = document.getElementById('chart-container');
+            const chart = LightweightCharts.createChart(chartContainer, {
+                width: chartContainer.clientWidth,
+                height: chartContainer.clientHeight,
+            });
+        
+            const candlestickSeries = chart.addCandlestickSeries();
+        
+            // Example data
+            const data = [
+                { time: '2024-08-01', open: 100, high: 110, low: 90, close: 105 },
+                { time: '2024-08-02', open: 105, high: 115, low: 95, close: 110 },
+                { time: '2024-08-03', open: 110, high: 120, low: 100, close: 115 },
+                // Add more data points as needed
+            ];
+        
+            candlestickSeries.setData(data);
+        
+            let isMeasuring = false;
+            let startPoint = null;
+            let endPoint = null;
+        
+            chart.subscribeClick((param) => {
+                if (!param || !param.time) return;
+        
+                if (!isMeasuring) {
+                    startPoint = param;
+                    isMeasuring = true;
+                } else {
+                    endPoint = param;
+                    isMeasuring = false;
+                    measureOHLC(startPoint, endPoint);
+                }
+            });
+        
+            function measureOHLC(start, end) {
+                const startData = start.seriesData.get(candlestickSeries);
+                const endData = end.seriesData.get(candlestickSeries);
+        
+                const priceRange = endData.close - startData.close;
+                const percentageChange = ((endData.close - startData.close) / startData.close) * 100;
+        
+                alert(`Start OHLC: Open=${startData.open}, High=${startData.high}, Low=${startData.low}, Close=${startData.close}
+        End OHLC: Open=${endData.open}, High=${endData.high}, Low=${endData.low}, Close=${endData.close}
+        Price range: ${priceRange.toFixed(2)}
+        Percentage change: ${percentageChange.toFixed(2)}%`);
+            }
+        
+            window.addEventListener('resize', () => {
+                chart.resize(chartContainer.clientWidth, chartContainer.clientHeight);
+            });
+        });
+        
+
+    </script>
+</body>
+</html>
