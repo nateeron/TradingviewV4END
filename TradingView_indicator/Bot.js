@@ -102,13 +102,19 @@ function BotGrid(data,TF) {
                 Count_S = Count_S + 1;
                 // Remove the current element from the array
                 p_buy.splice(index, 1);
-                for (let index = 0; index < 2; index++) {
-                    console.log("StartNewTime",plot+StartNewTime(TF,index+1))
-                    //All_Sell = All_Sell.concat({time: plot+StartNewTime(TF,index) ,value:null})
-                    All_Sell = All_Sell.concat({time: plot,value:p_Action})
-                }
-              
-                plotLine(All_Sell)
+                // for (let index = 0; index < 2; index++) {
+                //     console.log("StartNewTime",plot+StartNewTime(TF,index+1))
+                //     //All_Sell = All_Sell.concat({time: plot+StartNewTime(TF,index) ,value:null})
+                   
+                // }
+                console.log(TF,StartNewTime(TF,1)/1000)
+                const addTime1 =plot+ (StartNewTime(TF,1)  / 1000)
+                const addTime2 =plot+  (StartNewTime(TF,2)  / 1000)
+                console.log(plot,x.time)
+                console.log(addTime1,addTime2)
+                All_Sell = All_Sell.concat({time: addTime1,value:p_Action},{time: addTime2+60,value:p_Action})
+               // All_Sell = All_Sell.concat({time: 1722545460,value:0.5944},{time: 1722545460,value:0.5944},{time: 1722545640,value:0.5944})
+           
 
             }
         });
@@ -121,6 +127,7 @@ function BotGrid(data,TF) {
             Count_B = Count_B + 1;
             markers = markers.concat(mark_B(plot));
             p_buy = p_buy.concat(x.close);
+          
         }
         if ( p_buy.length == 0 ) {
             console.log(plot);
@@ -147,9 +154,16 @@ function BotGrid(data,TF) {
         //    markers = markers.concat(mark_S(plot));
         //    Count_S = Count_S + 1;
         //}
-    });
+       // All_Sell = All_Sell.concat({time: plot,value:0.5933})
+        // if(All_Sell.length > 0){
+        //     All_Sell = All_Sell.concat(All_Sell[All_Sell.length - 1])
 
-   
+        // }
+    });
+  
+    console.log(All_Sell)
+    plotLine(All_Sell)
+    
     const day_start = data[0].time;
     const day_end = data[data.length - 1].time;
     txt_Action_B.innerHTML = Count_B;

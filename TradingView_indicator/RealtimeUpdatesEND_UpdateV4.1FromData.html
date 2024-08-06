@@ -126,7 +126,7 @@
         const symbol = 'XRPUSDT'; // Replace with your symbol
         const limit = 300; // Binance API limit for klines per request
         const totalRows = 300; // Total rows you want to fetch
-
+        const urldata = 'http://127.0.0.1:8400/xrp'
         const container = document.getElementById('chart');
         const chart = LightweightCharts.createChart(container, chartOptions);
 
@@ -179,7 +179,12 @@
             return data;
         }
 
+        async function fetch() {
 
+            const response = await fetch(urldata);
+            const data = await response.json();
+            return data;
+        }
 
         async function fetchAllKlines(symbol, interval, totalRows) {
             let allData = [];
@@ -191,7 +196,9 @@
 
             try {
                 for (let i = 0; i < fetchCount; i++) {
-                    const data = await fetchKlines(symbol, interval, limit, lastEndTime);
+                    //const data = await fetchKlines(symbol, interval, limit, lastEndTime);
+                    const data = await fetch();
+                    
                     //if (i ==10 || i ==11){
                     //    allData = allData.concat(data);
                     //}
