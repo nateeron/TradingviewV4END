@@ -6,8 +6,8 @@ function formatPrice(value, decimals) {
 function removeDuplicates(data) {
     const seen = new Set();
     return data.filter((item) => {
-        const duplicate = seen.has(item[0]);
-        seen.add(item[0]);
+        const duplicate = seen.has(item.time);
+        seen.add(item.time);
         return !duplicate;
     });
 }

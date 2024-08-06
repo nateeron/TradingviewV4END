@@ -13,8 +13,19 @@ from fastapi.responses import JSONResponse
 import json
 from pydantic import BaseModel, Field
 from typing import List, Optional, Dict
-
+from flask_cors import CORS
+from starlette.middleware.cors import CORSMiddleware
 app = FastAPI()
+
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Allow all origins; specify domains as needed
+    allow_credentials=True,
+    allow_methods=["*"],  # Allow all methods
+    allow_headers=["*"],  # Allow all headers
+)
+
 
 
 base_url = "https://api.binance.com/api/v3/klines"
@@ -22,7 +33,6 @@ symbol = 'XRPUSDT'
 interval = '1m'  # Interval for candlesticks
 limit = 5  # Number of data points to fetch
 lengtbar = 15
-
 
     
 CONN = sqlite3.connect('crypto_prices.db')
@@ -72,24 +82,25 @@ def SortData(data):
     sortedData = sorted(data, key=lambda x: x[0])
     return sortedData
 
-def get_data():
+def get_data(lengtbar_ ,limit_):
     
-    num_batches = int(lengtbar / limit)
+    num_batches = int(lengtbar_ / limit_)
     data_ALL = []
     lastEndTime = 0
     
     for _ in range(num_batches):
-        x = load_data(symbol, interval, limit, lastEndTime)
+        x = load_data(symbol, interval, limit_, lastEndTime)
         
        
         data_ALL.extend(x)  # Use extend to add elements of x to data_ALL
         
         
         if len(x) > 0 :
-            st = StartNewTime(interval, limit)
+            st = StartNewTime(interval, limit_)
             lastEndTime = x[0][0] - st
         
     resp = SortData(data_ALL)
+    insert(resp)
     return resp
 
 
@@ -111,9 +122,9 @@ def CreateTable():
     CONN.close()
     
     
-def insert():
+def insert(data):
          # Connect to the SQLite database (or create it if it doesn't exist)
-        data = get_data()
+        CONN = sqlite3.connect('crypto_prices.db')
         print(data)
         cursor = CONN.cursor()
         # Insert data into the table
@@ -131,8 +142,8 @@ def CaldateTimessss(number):
     start_datetime = datetime.now()
     start_datetime = start_datetime.replace(hour=0, minute=0, second=0, microsecond=0)
     new_datetime = start_datetime - timedelta(days=number)
-    print("now:",start_datetime)
-    print("to :",new_datetime)
+    # print("now:",start_datetime)
+    # print("to :",new_datetime)
     return new_datetime
 def CaldateTime(timestamp):
     # Convert the timestamp to a datetime object
@@ -146,34 +157,59 @@ def CaldateTime(timestamp):
 def select():
     cs = sqlite3.connect('crypto_prices.db')
     cursor = cs.cursor()
-    qury = ''' select * From  tb_price'''
+    qury = ''' select * From  tb_price order by timestem '''
     cursor.execute(qury)
     data = cursor.fetchall()
-    oj = {}
+    # print(data)
+    print("------------------------------------")
+    
     oj_ALL = []
     for item in data:
+        oj = {}
         # print(CaldateTime(item[1]),item[2])
         oj["time"] = item[1]
-        oj["price"] = item[2]
+        oj["value"] = item[2]
         oj_ALL.append(oj)
     cs.close()
+    print("///////-----------------------------------/////////-")
     # print(oj_ALL)
+    
     return oj_ALL
+
+def delete():
+    CONN = sqlite3.connect('crypto_prices.db')
+    cursor = CONN.cursor()
+      
+    cursor.execute('''DELETE FROM tb_price ''')
+
+    # Commit the changes and close the connection
+    CONN.commit()
+    CONN.close()
+        
 class req(BaseModel):
     ok: str
+    limit:int
+    lengtbar:int
+    
    
 @app.get("/xrp")
 def getxrp():
+    
     return select()
 
+@app.get("/delete")
+def getxrp():
+    delete()
+    return 'success'
 
-# Add Data
-@app.post("/xrp")
+@app.post("/insert")
 def posxrp(req: req):
    
-    print(req.ok)
- 
-    return select()
+    # print(req.ok)
+    lengtbar_ = req.lengtbar
+    limit_ = req.limit
+    get_data(lengtbar_ ,limit_)
+    return "OK"
 
 # CreateTable()
 #insert()

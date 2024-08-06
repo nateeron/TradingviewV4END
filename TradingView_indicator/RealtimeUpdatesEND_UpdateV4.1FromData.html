@@ -129,15 +129,7 @@
         const urldata = 'http://127.0.0.1:8400/xrp'
         const container = document.getElementById('chart');
         const chart = LightweightCharts.createChart(container, chartOptions);
-
-        const candlestickSeries = chart.addCandlestickSeries({
-            upColor: '#26a69a',
-            downColor: '#ef5350',
-            borderVisible: false,
-            wickUpColor: '#26a69a',
-            wickDownColor: '#ef5350',
-        });
-
+        const candlestickSeries = chart.addLineSeries();
         let socket;
       
         const maPeriod = 90;
@@ -163,121 +155,41 @@
             return formattedDate;
         }
 
-        async function fetchKlines(symbol, interval, limit, startTime = null) {
-            //console.log("fetchKlines", startTime)
-            const params = new URLSearchParams({
-                symbol: symbol,
-                interval: interval,
-                limit: limit,
-            });
-            if (startTime) {
-                params.append('startTime', startTime);
-            }
+     
 
-            const response = await fetch(`${base_url}?${params.toString()}`);
+        async function fetchdata() {
+
+            const response = await fetch('http://127.0.0.1:8400/xrp')
             const data = await response.json();
             return data;
         }
 
-        async function fetch() {
-
-            const response = await fetch(urldata);
-            const data = await response.json();
-            return data;
-        }
-
-        async function fetchAllKlines(symbol, interval, totalRows) {
-            let allData = [];
-            let fetchCount = Math.ceil(totalRows / limit);
-            // console.log("fetchCount", totalRows, limit)
-            // console.log(fetchCount)
-            const promises = [];
-            let lastEndTime = null;
-
-            try {
-                for (let i = 0; i < fetchCount; i++) {
-                    //const data = await fetchKlines(symbol, interval, limit, lastEndTime);
-                    const data = await fetch();
-                    
-                    //if (i ==10 || i ==11){
-                    //    allData = allData.concat(data);
-                    //}
-                    allData = allData.concat(data);
-                    //console.log(allData)
-                    console.log(allData.length)
-                    //for (let i = 0; i < allData.length; i++) {
-                    //    console.log(allData[i][0], convert_TS(allData[i][0]))
-                    //}
-                    if (data.length > 0) {
-                        const st = StartNewTime(interval, limit)
-                        lastEndTime = data[0][0] - st; // Use the endTime of the last kline
-                    }
-                }
-                const resp = SortData(allData)
-                // เช็ก Data
-                //    console.log(resp)
-                //    for(let i = 0; i < resp.length; i++){
-                //    console.log(resp[i][0],convert_TS(allData[i][0]))
-                //
-                //}
-                const validData = validateData(resp);
-                const noDuplicatesData = removeDuplicates(validData);
-                return noDuplicatesData;
-            } catch {
-                return null
-
-            }
-        }
-
+       
         //END New 
         let processedData = null
         // อ้างอิง : https://developers.binance.com/docs/binance-spot-api-docs/rest-api
         async function fetchHistoricalData(symbol, interval) {
 
-            const rawKlines = await fetchAllKlines(symbol, interval, totalRows);
-            //console.log(rawKlines)
-
+            const rawKlines =  await fetchdata();
+           // const resp = SortData(rawKlines)
+            console.log(rawKlines)
+            const validData = validateData(rawKlines);
+            const noDuplicatesData = removeDuplicates(validData);
             try {
-                processedData = rawKlines.map(item => ({
-                    time: item[0] / 1000, // Convert milliseconds to seconds
-                    open: parseFloat(item[1]),
-                    high: parseFloat(item[2]),
-                    low: parseFloat(item[3]),
-                    close: parseFloat(item[4])
-                }));
-                //------ Start EMA20 -----------------
-                // EMA 20
-
-                updateMovingAverageSeries(processedData, maPeriod);
-                updateMovingAverageSeries2(processedData, maPeriod2);
-
-                //------end EMA20 -----------------
+                processedData = noDuplicatesData
 
                 // add data
                 candlestickSeries.setData(processedData);
                 //SeriesMarkerPosition: "aboveBar" | "belowBar" | "inBar"
                 //SeriesMarkerShape: "circle" | "square" | "arrowUp" | "arrowDown"
 
-                const markers = [
-                    {
-                        time: processedData[processedData.length - 5].time,
-                        position: 'aboveBar',
-                        color: '#992FB9',
-                        shape: 'arrowDown',
-                        text: 'Sell',
-                    }, {
-                        time: processedData[processedData.length - 3].time,
-                        position: 'belowBar',
-                        color: '#1C52E7',
-                        shape: 'arrowUp',
-                        text: 'Buy',
-                    },
-                ];
-
-                candlestickSeries.setMarkers(BotGrid(processedData,interval));
+                const interval = '1m'
+                const bot  =  BotGrid(processedData,interval)
+                console.log(bot)
+               //candlestickSeries.setMarkers(BotGrid(processedData,interval));
 
 
-                runRealtimeUpdates(symbol, interval);
+               // runRealtimeUpdates(symbol, interval);
             } catch (Error) {
                 console.log(Error)
 
@@ -316,19 +228,7 @@
             }
         }
 
-        function intervalInSeconds(interval) {
-            switch (interval) {
-
-                case '1m': return 60;
-                case '15m': return 15 * 60;
-                case '30m': return 30 * 60;
-                case '1h': return 60 * 60;
-                case '2h': return 2 * 60 * 60;
-                case '4h': return 4 * 60 * 60;
-                case '1d': return 24 * 60 * 60;
-                default: return 60;
-            }
-        }
+       
         // TEXT in Chart 
         let interval;
         let symbolName = symbol + ' TF: 1m';

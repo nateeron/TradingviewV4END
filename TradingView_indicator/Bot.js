@@ -75,25 +75,25 @@ function BotGrid(data,TF) {
     let Count_B = 0;
     let Count_S = 0;
     const ss = data.map((x, i) => {
-        // console.log(x.close,i)
+        // console.log(x.value,i)
         const plot = x.time;
         // console.log(i, p_Action, x.close, plot);
 
         if (p_Action == 0) {
             // Action BUY
-            p_Action = x.close;
+            p_Action = x.value;
             last_ACTION = "BUY";
             console.log("BUY");
             Count_B = Count_B + 1;
             markers = markers.concat(mark_B(plot));
-            p_buy = p_buy.concat(x.close);
+            p_buy = p_buy.concat(x.value);
           
         }
         let c_mark = 0
         p_buy.forEach((pB, index) => {
-            if (x.close > c_s(pB) || x.high > c_s(pB)) {
+            if (x.value > c_s(pB) ) {
                 // Action Sell
-                p_Action = x.close;
+                p_Action = x.value;
                 last_ACTION = "SELL";
                 console.log("SELL");
 
@@ -107,37 +107,37 @@ function BotGrid(data,TF) {
                 //     //All_Sell = All_Sell.concat({time: plot+StartNewTime(TF,index) ,value:null})
                    
                 // }
-                console.log(TF,StartNewTime(TF,1)/1000)
-                const addTime1 =plot+ (StartNewTime(TF,1)  / 1000)
-                const addTime2 =plot+  (StartNewTime(TF,2)  / 1000)
-                console.log(plot,x.time)
-                console.log(addTime1,addTime2)
-                All_Sell = All_Sell.concat({time: addTime1,value:p_Action},{time: addTime2+60,value:p_Action})
+                //console.log(TF,StartNewTime(TF,1)/1000)
+                const addTime1 =plot+ (StartNewTime(TF,1)  )
+                const addTime2 =plot+  (StartNewTime(TF,2)  )
+                // console.log(plot,x.time)
+                // console.log(addTime1,addTime2)
+                All_Sell = All_Sell.concat({time: addTime1,value:p_Action},{time: addTime2,value:p_Action})
                // All_Sell = All_Sell.concat({time: 1722545460,value:0.5944},{time: 1722545460,value:0.5944},{time: 1722545640,value:0.5944})
            
 
             }
         });
 
-        if (x.close < c_b(p_Action) || x.low < c_b(p_Action)) {
+        if (x.value < c_b(p_Action) ) {
             // Action BUY
-            p_Action = x.close;
+            p_Action = x.value;
             last_ACTION = "BUY";
             console.log("BUY");
             Count_B = Count_B + 1;
             markers = markers.concat(mark_B(plot));
-            p_buy = p_buy.concat(x.close);
+            p_buy = p_buy.concat(x.value);
           
         }
         if ( p_buy.length == 0 ) {
             console.log(plot);
             // Action BUY
-            p_Action = x.close;
+            p_Action = x.value;
             last_ACTION = "BUY";
             console.log("BUY");
             Count_B = Count_B + 1;
             markers = markers.concat(mark_B(plot));
-            p_buy = p_buy.concat(x.close);
+            p_buy = p_buy.concat(x.value);
         }
         // else if (last_ACTION == "BUY" && x.close < c_b(p_Action)) {
         //    // Action BUY
